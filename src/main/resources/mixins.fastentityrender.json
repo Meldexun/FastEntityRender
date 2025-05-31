@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "meldexun.fastentityrender.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "mixins.fastentityrender.refmap.json",
+  "mixins": [
+  ],
+  "client": [
+    "MixinModelBox",
+    "MixinModelRenderer"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
