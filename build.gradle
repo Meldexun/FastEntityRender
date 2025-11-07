@@ -62,6 +62,7 @@ dependencies {
     implementation "org.spongepowered:mixin:${mixin_version}"
     annotationProcessor "org.spongepowered:mixin:${mixin_version}:processor"
 
+    includedDependencies 'meldexun:ASMUtil:2.8.0@jar'
     includedDependencies 'meldexun:MemoryUtil:1.1.0@jar'
     includedDependencies 'meldexun:MatrixUtil:1.5.0@jar'
 }

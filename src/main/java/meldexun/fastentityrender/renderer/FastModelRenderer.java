@@ -2,21 +2,24 @@ package meldexun.fastentityrender.renderer;
 
 import static meldexun.memoryutil.UnsafeUtil.UNSAFE;
 
+import java.nio.ByteBuffer;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL30;
-import org.lwjgl.opengl.GL33;
 import org.lwjgl.opengl.GL44;
-import org.lwjgl.opengl.GL45;
 
+import meldexun.fastentityrender.opengl.BufferStorage;
+import meldexun.fastentityrender.opengl.Sync;
+import meldexun.fastentityrender.opengl.VertexArray;
 import meldexun.fastentityrender.util.ArrayStack;
 import meldexun.fastentityrender.util.CubeData;
 import meldexun.matrixutil.Matrix3f;
 import meldexun.matrixutil.Matrix4f;
 import meldexun.matrixutil.MatrixStack;
+import meldexun.memoryutil.MemoryUtil;
 import meldexun.memoryutil.NIOBufferUtil;
 import net.minecraft.client.model.ModelRenderer;
 
@@ -29,9 +32,10 @@ public class FastModelRenderer {
 	private final int[] vbos = new int[BUFFERS];
 	private final int[] vaos = new int[BUFFERS];
 	private final long[] addresses = new long[BUFFERS];
-	private final int[] syncs = IntStream.range(0, BUFFERS).map(i -> -1).toArray();
+	private final Object[] syncs = new Object[BUFFERS];
 	@SuppressWarnings("unchecked")
 	private final ArrayStack<Runnable>[] tasks = IntStream.range(0, BUFFERS).mapToObj(i -> new ArrayStack<>()).toArray(ArrayStack[]::new);
+	private long buffer;
 	private final ArrayStack<ModelRenderer> queue = new ArrayStack<>();
 	private final MatrixStack matrixStack = new MatrixStack();
 
@@ -41,8 +45,9 @@ public class FastModelRenderer {
 	private int vbo;
 	private int vao;
 	private long address;
-	private int vertices;
+	private int verticesBatch;
 	private int verticesTotal;
+	private boolean isBatching;
 
 	public static FastModelRenderer getInstance() {
 		if (instance == null) {
@@ -51,72 +56,168 @@ public class FastModelRenderer {
 		return instance;
 	}
 
-	public FastModelRenderer(long initialCapacity) {
+	private FastModelRenderer(long initialCapacity) {
 		initVBOs(initialCapacity);
 	}
 
 	private void initVBOs(long capacity) {
 		this.capacity = capacity;
-		for (int i = 0; i < BUFFERS; i++) {
-			vbos[i] = GL45.glCreateBuffers();
-			GL45.glNamedBufferStorage(vbos[i], capacity, GL30.GL_MAP_WRITE_BIT | GL44.GL_MAP_PERSISTENT_BIT);
-			vaos[i] = GL45.glCreateVertexArrays();
-			GL30.glBindVertexArray(vaos[i]);
-			GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
-			GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-			GL11.glEnableClientState(GL11.GL_NORMAL_ARRAY);
-			GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vbos[i]);
-			GL11.glVertexPointer(3, GL11.GL_FLOAT, VERTEX_SIZE, 0L);
-			GL11.glTexCoordPointer(2, GL11.GL_FLOAT, VERTEX_SIZE, 12L);
-			GL11.glNormalPointer(GL11.GL_BYTE, VERTEX_SIZE, 20L);
-			GL30.glBindVertexArray(0);
-			GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
-			GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
-			GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-			GL11.glDisableClientState(GL11.GL_NORMAL_ARRAY);
-			addresses[i] = NIOBufferUtil.getAddress(GL45.glMapNamedBufferRange(vbos[i], 0L, capacity, GL30.GL_MAP_WRITE_BIT | GL44.GL_MAP_PERSISTENT_BIT | GL30.GL_MAP_FLUSH_EXPLICIT_BIT, null));
+		if (BufferStorage.isSupported() && Sync.isSupported()) {
+			for (int i = 0; i < BUFFERS; i++) {
+				vbos[i] = BufferStorage.createBuffer();
+				BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, vbos[i], false);
+				BufferStorage.initBuffer(GL15.GL_ARRAY_BUFFER, vbos[i], capacity, GL30.GL_MAP_WRITE_BIT | GL44.GL_MAP_PERSISTENT_BIT);
+				addresses[i] = NIOBufferUtil.getAddress(BufferStorage.mapBuffer(GL15.GL_ARRAY_BUFFER, vbos[i], 0L, capacity, GL30.GL_MAP_WRITE_BIT | GL30.GL_MAP_INVALIDATE_BUFFER_BIT | GL30.GL_MAP_FLUSH_EXPLICIT_BIT | GL30.GL_MAP_UNSYNCHRONIZED_BIT | GL44.GL_MAP_PERSISTENT_BIT));
+				BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, 0, false);
+
+				if (VertexArray.isSupported()) {
+					vaos[i] = VertexArray.createVertexArray();
+					VertexArray.bindVertexArray(vaos[i]);
+					GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
+					GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
+					GL11.glEnableClientState(GL11.GL_NORMAL_ARRAY);
+					BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, vbos[i], true);
+					GL11.glVertexPointer(3, GL11.GL_FLOAT, VERTEX_SIZE, 0L);
+					GL11.glTexCoordPointer(2, GL11.GL_FLOAT, VERTEX_SIZE, 12L);
+					GL11.glNormalPointer(GL11.GL_BYTE, VERTEX_SIZE, 20L);
+					BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, 0, true);
+					VertexArray.bindVertexArray(0);
+				}
+			}
+		} else {
+			if (buffer != 0L) {
+				UNSAFE.freeMemory(buffer);
+			}
+			buffer = UNSAFE.allocateMemory(capacity);
 		}
 	}
 
 	public void startFrame() {
-		index = ++index % BUFFERS;
-		vbo = vbos[index];
-		vao = vaos[index];
-		address = addresses[index];
-		if (syncs[index] >= 0) {
-			GL33.glGetQueryObjecti64(syncs[index], GL15.GL_QUERY_RESULT);
-			GL15.glDeleteQueries(syncs[index]);
-			syncs[index] = -1;
-		}
-		while (!tasks[index].isEmpty()) {
-			tasks[index].remove().run();
-		}
-		verticesTotal = 0;
-	}
-
-	public void endFrame() {
-		syncs[index] = GL45.glCreateQueries(GL33.GL_TIMESTAMP);
-	}
-
-	public void render(ModelRenderer bone, float scale) {
-		if (capacity < (verticesTotal + vertices(bone)) * VERTEX_SIZE) {
-			for (int i = 0; i < BUFFERS; i++) {
-				int vbo = vbos[i];
-				int vao = vaos[i];
-				GL45.glUnmapNamedBuffer(vbo);
-				tasks[i].add(() -> {
-					GL30.glDeleteVertexArrays(vao);
-					GL15.glDeleteBuffers(vbo);
-				});
-			}
-			initVBOs(Math.max(capacity + (capacity >> 1), (verticesTotal + vertices(bone)) * VERTEX_SIZE));
+		if (BufferStorage.isSupported() && Sync.isSupported()) {
+			index = (index + 1) % BUFFERS;
 			vbo = vbos[index];
 			vao = vaos[index];
 			address = addresses[index];
+			if (syncs[index] != null) {
+				Sync.waitSync(syncs[index]);
+				Sync.deleteSync(syncs[index]);
+				syncs[index] = null;
+			}
+			while (!tasks[index].isEmpty()) {
+				tasks[index].remove().run();
+			}
+			verticesTotal = 0;
+		} else {
+			address = buffer;
+		}
+	}
+
+	public void endFrame() {
+		if (BufferStorage.isSupported() && Sync.isSupported()) {
+			syncs[index] = Sync.createSync();
+		}
+	}
+
+	public void startBatch() {
+		isBatching = true;
+		verticesBatch = 0;
+		if (!BufferStorage.isSupported() || !Sync.isSupported()) {
 			verticesTotal = 0;
 		}
+	}
 
-		vertices = 0;
+	public void endBatch() {
+		if (!isBatching) {
+			throw new IllegalStateException();
+		}
+		isBatching = false;
+		if (verticesBatch > 0) {
+			if (BufferStorage.isSupported() && Sync.isSupported()) {
+				BufferStorage.flushBuffer(GL15.GL_ARRAY_BUFFER, vbo, (verticesTotal - verticesBatch) * VERTEX_SIZE, verticesBatch * VERTEX_SIZE);
+
+				if (VertexArray.isSupported()) {
+					VertexArray.bindVertexArray(vao);
+				} else {
+					GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
+					GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
+					GL11.glEnableClientState(GL11.GL_NORMAL_ARRAY);
+					BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, vbo, true);
+					GL11.glVertexPointer(3, GL11.GL_FLOAT, VERTEX_SIZE, 0L);
+					GL11.glTexCoordPointer(2, GL11.GL_FLOAT, VERTEX_SIZE, 12L);
+					GL11.glNormalPointer(GL11.GL_BYTE, VERTEX_SIZE, 20L);
+				}
+
+				GL11.glDrawArrays(GL11.GL_QUADS, verticesTotal - verticesBatch, verticesBatch);
+
+				if (VertexArray.isSupported()) {
+					VertexArray.bindVertexArray(0);
+				} else {
+					GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
+					GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
+					GL11.glDisableClientState(GL11.GL_NORMAL_ARRAY);
+					BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, 0, true);
+				}
+			} else {
+				GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
+				GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
+				GL11.glEnableClientState(GL11.GL_NORMAL_ARRAY);
+
+				ByteBuffer buffer = NIOBufferUtil.asByteBuffer(address, capacity);
+				GL11.glVertexPointer(3, GL11.GL_FLOAT, VERTEX_SIZE, (ByteBuffer) buffer.position(0));
+				GL11.glTexCoordPointer(2, GL11.GL_FLOAT, VERTEX_SIZE, (ByteBuffer) buffer.position(12));
+				GL11.glNormalPointer(GL11.GL_BYTE, VERTEX_SIZE, (ByteBuffer) buffer.position(20));
+
+				GL11.glDrawArrays(GL11.GL_QUADS, 0, verticesBatch);
+
+				GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
+				GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
+				GL11.glDisableClientState(GL11.GL_NORMAL_ARRAY);
+			}
+		}
+	}
+
+	public void render(ModelRenderer bone, float scale) {
+		int vertices = vertices(bone);
+		if (vertices <= 0) {
+			return;
+		}
+
+		boolean batched = isBatching;
+		if (!batched) {
+			startBatch();
+		}
+
+		if (capacity < (verticesTotal + vertices) * VERTEX_SIZE) {
+			if (BufferStorage.isSupported() && Sync.isSupported()) {
+				long old = address;
+				for (int i = 0; i < BUFFERS; i++) {
+					int vbo = vbos[i];
+					int vao = vaos[i];
+					tasks[i].add(() -> {
+						BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, vbo, false);
+						BufferStorage.unmapBuffer(GL15.GL_ARRAY_BUFFER, vbo);
+						BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, 0, false);
+						if (VertexArray.isSupported()) {
+							VertexArray.deleteVertexArray(vao);
+						}
+						BufferStorage.deleteBuffer(vbo);
+					});
+				}
+				initVBOs(Math.max(capacity + (capacity >> 1), (verticesTotal + vertices) * VERTEX_SIZE));
+				vbo = vbos[index];
+				vao = vaos[index];
+				address = addresses[index];
+				MemoryUtil.copyMemory(old + (verticesTotal - verticesBatch) * VERTEX_SIZE, address, verticesBatch * VERTEX_SIZE);
+				verticesTotal = verticesBatch;
+			} else {
+				long old = address;
+				initVBOs(Math.max(capacity + (capacity >> 1), (verticesTotal + vertices) * VERTEX_SIZE));
+				address = buffer;
+				MemoryUtil.copyMemory(old + (verticesTotal - verticesBatch) * VERTEX_SIZE, address, verticesBatch * VERTEX_SIZE);
+				verticesTotal = verticesBatch;
+			}
+		}
+
 		queue.add(bone);
 		while (!queue.isEmpty()) {
 			ModelRenderer bone1 = queue.remove();
@@ -211,11 +312,9 @@ public class FastModelRenderer {
 				matrixStack.pop();
 			}
 		}
-		if (vertices > 0) {
-			GL45.glFlushMappedNamedBufferRange(vbo, (verticesTotal - vertices) * VERTEX_SIZE, vertices * VERTEX_SIZE);
-			GL30.glBindVertexArray(vao);
-			GL11.glDrawArrays(GL11.GL_QUADS, verticesTotal - vertices, vertices);
-			GL30.glBindVertexArray(0);
+
+		if (!batched) {
+			endBatch();
 		}
 	}
 
@@ -240,7 +339,7 @@ public class FastModelRenderer {
 		UNSAFE.putFloat(offset + 12, u);
 		UNSAFE.putFloat(offset + 16, v);
 		UNSAFE.putInt(offset + 20, n);
-		vertices++;
+		verticesBatch++;
 		verticesTotal++;
 	}
 
