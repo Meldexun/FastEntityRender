@@ -69,6 +69,7 @@ public class FastEntityRenderClassTransformer extends AbstractClassTransformer i
 		}
 
 		boolean transformed = false;
+		int writeFlags = 0;
 		for (AbstractInsnNode insn = renderMethod.instructions.getFirst(); insn != null; insn = insn.getNext()) {
 			if (!(insn instanceof MethodInsnNode))
 				continue;
@@ -105,6 +106,8 @@ public class FastEntityRenderClassTransformer extends AbstractClassTransformer i
 					&& first.getPrevious().getPrevious() != null && first.getPrevious().getPrevious().getOpcode() == Opcodes.GETFIELD
 					&& first.getPrevious().getPrevious().getPrevious() != null && first.getPrevious().getPrevious().getPrevious().getOpcode() == Opcodes.ALOAD) {
 				first = first.getPrevious().getPrevious().getPrevious();
+			} else {
+				writeFlags |= ClassWriter.COMPUTE_MAXS;
 			}
 
 			renderMethod.instructions.insertBefore(first, ASMUtil.listOf(
@@ -123,7 +126,7 @@ public class FastEntityRenderClassTransformer extends AbstractClassTransformer i
 			return null;
 		}
 
-		ClassWriter classWriter = new NonLoadingClassWriter(ClassWriter.COMPUTE_MAXS, REMAPPING_CLASS_UTIL);
+		ClassWriter classWriter = new NonLoadingClassWriter(writeFlags, REMAPPING_CLASS_UTIL);
 		classNode.accept(classWriter);
 		return classWriter.toByteArray();
 	}
