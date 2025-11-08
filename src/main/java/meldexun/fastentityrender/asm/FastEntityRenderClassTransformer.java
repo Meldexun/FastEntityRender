@@ -1,6 +1,7 @@
 package meldexun.fastentityrender.asm;
 
 import java.lang.reflect.Field;
+import java.util.MissingResourceException;
 import java.util.NoSuchElementException;
 
 import org.objectweb.asm.ClassReader;
@@ -48,7 +49,11 @@ public class FastEntityRenderClassTransformer extends AbstractClassTransformer i
 		if (basicClass == null) {
 			return null;
 		}
-		if (REMAPPING_CLASS_UTIL.findInClassHierarchy(name.replace('.', '/'), "net/minecraft/client/model/ModelBase"::equals) == null) {
+		try {
+			if (REMAPPING_CLASS_UTIL.findInClassHierarchy(name.replace('.', '/'), "net/minecraft/client/model/ModelBase"::equals) == null) {
+				return null;
+			}
+		} catch (MissingResourceException e) {
 			return null;
 		}
 
