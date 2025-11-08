@@ -68,6 +68,7 @@ public class FastEntityRenderClassTransformer extends AbstractClassTransformer i
 			return null;
 		}
 
+		boolean transformed = false;
 		for (AbstractInsnNode insn = renderMethod.instructions.getFirst(); insn != null; insn = insn.getNext()) {
 			if (!(insn instanceof MethodInsnNode))
 				continue;
@@ -114,8 +115,12 @@ public class FastEntityRenderClassTransformer extends AbstractClassTransformer i
 					new MethodInsnNode(Opcodes.INVOKESTATIC, "meldexun/fastentityrender/renderer/FastModelRenderer", "getInstance", "()Lmeldexun/fastentityrender/renderer/FastModelRenderer;", false),
 					new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "meldexun/fastentityrender/renderer/FastModelRenderer", "endBatch", "()V", false)
 			));
+			transformed = true;
 
 			insn = last;
+		}
+		if (!transformed) {
+			return null;
 		}
 
 		ClassWriter classWriter = new NonLoadingClassWriter(ClassWriter.COMPUTE_MAXS, REMAPPING_CLASS_UTIL);
