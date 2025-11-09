@@ -285,15 +285,15 @@ public class FastModelRenderer {
 					bufferVertex(x011, y011, z011, cubeData.unx0, cubeData.vnx1, nx1);
 					bufferVertex(x010, y010, z010, cubeData.unx1, cubeData.vnx1, nx1);
 
-					bufferVertex(x011, y011, z011, cubeData.upy1, cubeData.vpy0, ny0);
-					bufferVertex(x111, y111, z111, cubeData.upy0, cubeData.vpy0, ny0);
-					bufferVertex(x110, y110, z110, cubeData.upy0, cubeData.vpy1, ny0);
-					bufferVertex(x010, y010, z010, cubeData.upy1, cubeData.vpy1, ny0);
+					bufferVertex(x011, y011, z011, cubeData.upy0, cubeData.vpy1, ny0);
+					bufferVertex(x111, y111, z111, cubeData.upy1, cubeData.vpy1, ny0);
+					bufferVertex(x110, y110, z110, cubeData.upy1, cubeData.vpy0, ny0);
+					bufferVertex(x010, y010, z010, cubeData.upy0, cubeData.vpy0, ny0);
 
-					bufferVertex(x000, y000, z000, cubeData.uny1, cubeData.vny0, ny1);
-					bufferVertex(x100, y100, z100, cubeData.uny0, cubeData.vny0, ny1);
-					bufferVertex(x101, y101, z101, cubeData.uny0, cubeData.vny1, ny1);
-					bufferVertex(x001, y001, z001, cubeData.uny1, cubeData.vny1, ny1);
+					bufferVertex(x000, y000, z000, cubeData.uny0, cubeData.vny1, ny1);
+					bufferVertex(x100, y100, z100, cubeData.uny1, cubeData.vny1, ny1);
+					bufferVertex(x101, y101, z101, cubeData.uny1, cubeData.vny0, ny1);
+					bufferVertex(x001, y001, z001, cubeData.uny0, cubeData.vny0, ny1);
 
 					bufferVertex(x001, y001, z001, cubeData.upz1, cubeData.vpz0, nz0);
 					bufferVertex(x101, y101, z101, cubeData.upz0, cubeData.vpz0, nz0);
