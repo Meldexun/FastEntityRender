@@ -1,5 +1,8 @@
 package meldexun.fastentityrender;
 
+import meldexun.fastentityrender.integration.Optifine;
+import meldexun.fastentityrender.integration.OptifineLegacyModelRenderer;
+import meldexun.fastentityrender.integration.OptifinePersistentModelRenderer;
 import meldexun.fastentityrender.renderer.FastModelRenderer;
 import meldexun.fastentityrender.renderer.LegacyModelRenderer;
 import meldexun.fastentityrender.renderer.PersistentModelRenderer;
@@ -19,10 +22,18 @@ public class EntityRenderer {
 			renderer = null;
 		}
 		if (renderer == null) {
-			if (PersistentModelRenderer.isSupported() && !FastEntityRenderConfig.forceLegacyRenderer) {
-				renderer = new PersistentModelRenderer(1 << 20);
+			if (Optifine.OPTIFINE_DETECTED) {
+				if (PersistentModelRenderer.isSupported() && !FastEntityRenderConfig.forceLegacyRenderer) {
+					renderer = new OptifinePersistentModelRenderer(1 << 21);
+				} else {
+					renderer = new OptifineLegacyModelRenderer(1 << 17);
+				}
 			} else {
-				renderer = new LegacyModelRenderer(1 << 16);
+				if (PersistentModelRenderer.isSupported() && !FastEntityRenderConfig.forceLegacyRenderer) {
+					renderer = new PersistentModelRenderer(1 << 20);
+				} else {
+					renderer = new LegacyModelRenderer(1 << 16);
+				}
 			}
 		}
 
