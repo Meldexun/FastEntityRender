@@ -21,7 +21,9 @@ public enum Sync {
 
 		@Override
 		protected Object _createSync() {
-			return GL45.glCreateQueries(GL33.GL_TIMESTAMP);
+			int sync = GL45.glCreateQueries(GL33.GL_TIMESTAMP);
+			GL33.glQueryCounter(sync, GL33.GL_TIMESTAMP);
+			return sync;
 		}
 
 		@Override
@@ -42,7 +44,9 @@ public enum Sync {
 
 		@Override
 		protected Object _createSync() {
-			return ARBDirectStateAccess.glCreateQueries(GL33.GL_TIMESTAMP);
+			int sync = ARBDirectStateAccess.glCreateQueries(GL33.GL_TIMESTAMP);
+			GL33.glQueryCounter(sync, GL33.GL_TIMESTAMP);
+			return sync;
 		}
 
 		@Override
