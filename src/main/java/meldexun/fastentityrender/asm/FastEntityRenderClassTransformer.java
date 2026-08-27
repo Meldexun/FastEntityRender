@@ -111,12 +111,10 @@ public class FastEntityRenderClassTransformer extends AbstractClassTransformer i
 			}
 
 			renderMethod.instructions.insertBefore(first, ASMUtil.listOf(
-					new MethodInsnNode(Opcodes.INVOKESTATIC, "meldexun/fastentityrender/renderer/FastModelRenderer", "getInstance", "()Lmeldexun/fastentityrender/renderer/FastModelRenderer;", false),
-					new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "meldexun/fastentityrender/renderer/FastModelRenderer", "startBatch", "()V", false)
+					new MethodInsnNode(Opcodes.INVOKESTATIC, "meldexun/fastentityrender/EntityRenderer", "startBatch", "()V", false)
 			));
 			renderMethod.instructions.insert(last, ASMUtil.listOf(
-					new MethodInsnNode(Opcodes.INVOKESTATIC, "meldexun/fastentityrender/renderer/FastModelRenderer", "getInstance", "()Lmeldexun/fastentityrender/renderer/FastModelRenderer;", false),
-					new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "meldexun/fastentityrender/renderer/FastModelRenderer", "endBatch", "()V", false)
+					new MethodInsnNode(Opcodes.INVOKESTATIC, "meldexun/fastentityrender/EntityRenderer", "endBatch", "()V", false)
 			));
 			transformed = true;
 

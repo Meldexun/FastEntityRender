@@ -2,128 +2,59 @@ package meldexun.fastentityrender.renderer;
 
 import static meldexun.memoryutil.UnsafeUtil.UNSAFE;
 
-import java.nio.ByteBuffer;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL15;
-import org.lwjgl.opengl.GL30;
-import org.lwjgl.opengl.GL44;
-
-import meldexun.fastentityrender.opengl.BufferStorage;
-import meldexun.fastentityrender.opengl.Sync;
-import meldexun.fastentityrender.opengl.VertexArray;
 import meldexun.fastentityrender.util.ArrayStack;
 import meldexun.fastentityrender.util.CubeData;
 import meldexun.matrixutil.Matrix3f;
 import meldexun.matrixutil.Matrix4f;
 import meldexun.matrixutil.MatrixStack;
-import meldexun.memoryutil.MemoryUtil;
-import meldexun.memoryutil.NIOBufferUtil;
 import net.minecraft.client.model.ModelRenderer;
 
-public class FastModelRenderer {
+public abstract class FastModelRenderer {
 
-	private static final int BUFFERS = 3;
-	private static final int VERTEX_SIZE = 24;
-	private static FastModelRenderer instance;
+	public static final int VERTEX_SIZE = 24;
 
-	private final int[] vbos = new int[BUFFERS];
-	private final int[] vaos = new int[BUFFERS];
-	private final long[] addresses = new long[BUFFERS];
-	private final Object[] syncs = new Object[BUFFERS];
-	@SuppressWarnings("unchecked")
-	private final ArrayStack<Runnable>[] tasks = IntStream.range(0, BUFFERS).mapToObj(i -> new ArrayStack<>()).toArray(ArrayStack[]::new);
-	private long buffer;
 	private final ArrayStack<ModelRenderer> queue = new ArrayStack<>();
 	private final MatrixStack matrixStack = new MatrixStack();
 
-	private long capacity;
+	protected long capacity;
 
-	private int index;
-	private int vbo;
-	private int vao;
-	private long address;
-	private int verticesBatch;
-	private int verticesTotal;
-	private boolean isBatching;
+	protected long address;
+	protected int vertexSize = VERTEX_SIZE;
+	protected int verticesBatch;
+	protected int verticesTotal;
+	protected boolean isBatching;
 
-	public static FastModelRenderer getInstance() {
-		if (instance == null) {
-			instance = new FastModelRenderer(1 << 20);
-		}
-		return instance;
+	protected FastModelRenderer(long initialCapacity) {
+		initBuffers(initialCapacity);
 	}
 
-	private FastModelRenderer(long initialCapacity) {
-		initVBOs(initialCapacity);
-	}
+	public abstract void dispose();
 
-	private void initVBOs(long capacity) {
+	protected final void initBuffers(long capacity) {
 		this.capacity = capacity;
-		if (BufferStorage.isSupported() && Sync.isSupported()) {
-			for (int i = 0; i < BUFFERS; i++) {
-				vbos[i] = BufferStorage.createBuffer();
-				BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, vbos[i], false);
-				BufferStorage.initBuffer(GL15.GL_ARRAY_BUFFER, vbos[i], capacity, GL30.GL_MAP_WRITE_BIT | GL44.GL_MAP_PERSISTENT_BIT);
-				addresses[i] = NIOBufferUtil.getAddress(BufferStorage.mapBuffer(GL15.GL_ARRAY_BUFFER, vbos[i], 0L, capacity, GL30.GL_MAP_WRITE_BIT | GL30.GL_MAP_INVALIDATE_BUFFER_BIT | GL30.GL_MAP_FLUSH_EXPLICIT_BIT | GL30.GL_MAP_UNSYNCHRONIZED_BIT | GL44.GL_MAP_PERSISTENT_BIT));
-				BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, 0, false);
-
-				if (VertexArray.isSupported()) {
-					vaos[i] = VertexArray.createVertexArray();
-					VertexArray.bindVertexArray(vaos[i]);
-					GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
-					GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-					GL11.glEnableClientState(GL11.GL_NORMAL_ARRAY);
-					BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, vbos[i], true);
-					GL11.glVertexPointer(3, GL11.GL_FLOAT, VERTEX_SIZE, 0L);
-					GL11.glTexCoordPointer(2, GL11.GL_FLOAT, VERTEX_SIZE, 12L);
-					GL11.glNormalPointer(GL11.GL_BYTE, VERTEX_SIZE, 20L);
-					BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, 0, true);
-					VertexArray.bindVertexArray(0);
-				}
-			}
-		} else {
-			if (buffer != 0L) {
-				UNSAFE.freeMemory(buffer);
-			}
-			buffer = UNSAFE.allocateMemory(capacity);
-		}
+		this._initBuffers(capacity);
 	}
+
+	protected abstract void _initBuffers(long capacity);
+
+	protected abstract void ensureCapacity(long minCapacity);
 
 	public void startFrame() {
-		if (BufferStorage.isSupported() && Sync.isSupported()) {
-			index = (index + 1) % BUFFERS;
-			vbo = vbos[index];
-			vao = vaos[index];
-			address = addresses[index];
-			if (syncs[index] != null) {
-				Sync.waitSync(syncs[index]);
-				Sync.deleteSync(syncs[index]);
-				syncs[index] = null;
-			}
-			while (!tasks[index].isEmpty()) {
-				tasks[index].remove().run();
-			}
-			verticesTotal = 0;
-		} else {
-			address = buffer;
-		}
+		verticesTotal = 0;
 	}
 
 	public void endFrame() {
-		if (BufferStorage.isSupported() && Sync.isSupported()) {
-			syncs[index] = Sync.createSync();
-		}
+
 	}
 
 	public void startBatch() {
+		if (isBatching) {
+			throw new IllegalStateException();
+		}
 		isBatching = true;
 		verticesBatch = 0;
-		if (!BufferStorage.isSupported() || !Sync.isSupported()) {
-			verticesTotal = 0;
-		}
 	}
 
 	public void endBatch() {
@@ -132,49 +63,11 @@ public class FastModelRenderer {
 		}
 		isBatching = false;
 		if (verticesBatch > 0) {
-			if (BufferStorage.isSupported() && Sync.isSupported()) {
-				BufferStorage.flushBuffer(GL15.GL_ARRAY_BUFFER, vbo, (verticesTotal - verticesBatch) * VERTEX_SIZE, verticesBatch * VERTEX_SIZE);
-
-				if (VertexArray.isSupported()) {
-					VertexArray.bindVertexArray(vao);
-				} else {
-					GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
-					GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-					GL11.glEnableClientState(GL11.GL_NORMAL_ARRAY);
-					BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, vbo, true);
-					GL11.glVertexPointer(3, GL11.GL_FLOAT, VERTEX_SIZE, 0L);
-					GL11.glTexCoordPointer(2, GL11.GL_FLOAT, VERTEX_SIZE, 12L);
-					GL11.glNormalPointer(GL11.GL_BYTE, VERTEX_SIZE, 20L);
-				}
-
-				GL11.glDrawArrays(GL11.GL_QUADS, verticesTotal - verticesBatch, verticesBatch);
-
-				if (VertexArray.isSupported()) {
-					VertexArray.bindVertexArray(0);
-				} else {
-					GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
-					GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-					GL11.glDisableClientState(GL11.GL_NORMAL_ARRAY);
-					BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, 0, true);
-				}
-			} else {
-				GL11.glEnableClientState(GL11.GL_VERTEX_ARRAY);
-				GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-				GL11.glEnableClientState(GL11.GL_NORMAL_ARRAY);
-
-				ByteBuffer buffer = NIOBufferUtil.asByteBuffer(address, capacity);
-				GL11.glVertexPointer(3, GL11.GL_FLOAT, VERTEX_SIZE, (ByteBuffer) buffer.position(0));
-				GL11.glTexCoordPointer(2, GL11.GL_FLOAT, VERTEX_SIZE, (ByteBuffer) buffer.position(12));
-				GL11.glNormalPointer(GL11.GL_BYTE, VERTEX_SIZE, (ByteBuffer) buffer.position(20));
-
-				GL11.glDrawArrays(GL11.GL_QUADS, 0, verticesBatch);
-
-				GL11.glDisableClientState(GL11.GL_VERTEX_ARRAY);
-				GL11.glDisableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
-				GL11.glDisableClientState(GL11.GL_NORMAL_ARRAY);
-			}
+			this.renderBatch();
 		}
 	}
+
+	protected abstract void renderBatch();
 
 	public void render(ModelRenderer bone, float scale) {
 		int vertices = vertices(bone);
@@ -187,36 +80,7 @@ public class FastModelRenderer {
 			startBatch();
 		}
 
-		if (capacity < (verticesTotal + vertices) * VERTEX_SIZE) {
-			if (BufferStorage.isSupported() && Sync.isSupported()) {
-				long old = address;
-				for (int i = 0; i < BUFFERS; i++) {
-					int vbo = vbos[i];
-					int vao = vaos[i];
-					tasks[i].add(() -> {
-						BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, vbo, false);
-						BufferStorage.unmapBuffer(GL15.GL_ARRAY_BUFFER, vbo);
-						BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, 0, false);
-						if (VertexArray.isSupported()) {
-							VertexArray.deleteVertexArray(vao);
-						}
-						BufferStorage.deleteBuffer(vbo);
-					});
-				}
-				initVBOs(Math.max(capacity + (capacity >> 1), (verticesTotal + vertices) * VERTEX_SIZE));
-				vbo = vbos[index];
-				vao = vaos[index];
-				address = addresses[index];
-				MemoryUtil.copyMemory(old + (verticesTotal - verticesBatch) * VERTEX_SIZE, address, verticesBatch * VERTEX_SIZE);
-				verticesTotal = verticesBatch;
-			} else {
-				long old = address;
-				initVBOs(Math.max(capacity + (capacity >> 1), (verticesTotal + vertices) * VERTEX_SIZE));
-				address = buffer;
-				MemoryUtil.copyMemory(old + (verticesTotal - verticesBatch) * VERTEX_SIZE, address, verticesBatch * VERTEX_SIZE);
-				verticesTotal = verticesBatch;
-			}
-		}
+		this.ensureCapacity((verticesTotal + vertices) * vertexSize);
 
 		queue.add(bone);
 		while (!queue.isEmpty()) {
@@ -268,42 +132,12 @@ public class FastModelRenderer {
 					float z111 = modelMatrix.m20 * (cubeData.x1 * scale) + modelMatrix.m21 * (cubeData.y1 * scale) + modelMatrix.m22 * (cubeData.z1 * scale) + modelMatrix.m23;
 
 					Matrix3f normalMatrix = matrixStack.normalMatrix();
-					int nx0 = ((int) ( normalMatrix.m00 * 127) & 255) | ((int) ( normalMatrix.m10 * 127) & 255) << 8 | ((int) ( normalMatrix.m20 * 127) & 255) << 16;
-					int nx1 = ((int) (-normalMatrix.m00 * 127) & 255) | ((int) (-normalMatrix.m10 * 127) & 255) << 8 | ((int) (-normalMatrix.m20 * 127) & 255) << 16;
-					int ny0 = ((int) ( normalMatrix.m01 * 127) & 255) | ((int) ( normalMatrix.m11 * 127) & 255) << 8 | ((int) ( normalMatrix.m21 * 127) & 255) << 16;
-					int ny1 = ((int) (-normalMatrix.m01 * 127) & 255) | ((int) (-normalMatrix.m11 * 127) & 255) << 8 | ((int) (-normalMatrix.m21 * 127) & 255) << 16;
-					int nz0 = ((int) ( normalMatrix.m02 * 127) & 255) | ((int) ( normalMatrix.m12 * 127) & 255) << 8 | ((int) ( normalMatrix.m22 * 127) & 255) << 16;
-					int nz1 = ((int) (-normalMatrix.m02 * 127) & 255) | ((int) (-normalMatrix.m12 * 127) & 255) << 8 | ((int) (-normalMatrix.m22 * 127) & 255) << 16;
-
-					bufferVertex(x101, y101, z101, cubeData.upx1, cubeData.vpx0, nx0);
-					bufferVertex(x100, y100, z100, cubeData.upx0, cubeData.vpx0, nx0);
-					bufferVertex(x110, y110, z110, cubeData.upx0, cubeData.vpx1, nx0);
-					bufferVertex(x111, y111, z111, cubeData.upx1, cubeData.vpx1, nx0);
-
-					bufferVertex(x000, y000, z000, cubeData.unx1, cubeData.vnx0, nx1);
-					bufferVertex(x001, y001, z001, cubeData.unx0, cubeData.vnx0, nx1);
-					bufferVertex(x011, y011, z011, cubeData.unx0, cubeData.vnx1, nx1);
-					bufferVertex(x010, y010, z010, cubeData.unx1, cubeData.vnx1, nx1);
-
-					bufferVertex(x011, y011, z011, cubeData.upy0, cubeData.vpy1, ny0);
-					bufferVertex(x111, y111, z111, cubeData.upy1, cubeData.vpy1, ny0);
-					bufferVertex(x110, y110, z110, cubeData.upy1, cubeData.vpy0, ny0);
-					bufferVertex(x010, y010, z010, cubeData.upy0, cubeData.vpy0, ny0);
-
-					bufferVertex(x000, y000, z000, cubeData.uny0, cubeData.vny1, ny1);
-					bufferVertex(x100, y100, z100, cubeData.uny1, cubeData.vny1, ny1);
-					bufferVertex(x101, y101, z101, cubeData.uny1, cubeData.vny0, ny1);
-					bufferVertex(x001, y001, z001, cubeData.uny0, cubeData.vny0, ny1);
-
-					bufferVertex(x001, y001, z001, cubeData.upz1, cubeData.vpz0, nz0);
-					bufferVertex(x101, y101, z101, cubeData.upz0, cubeData.vpz0, nz0);
-					bufferVertex(x111, y111, z111, cubeData.upz0, cubeData.vpz1, nz0);
-					bufferVertex(x011, y011, z011, cubeData.upz1, cubeData.vpz1, nz0);
-
-					bufferVertex(x100, y100, z100, cubeData.unz1, cubeData.vnz0, nz1);
-					bufferVertex(x000, y000, z000, cubeData.unz0, cubeData.vnz0, nz1);
-					bufferVertex(x010, y010, z010, cubeData.unz0, cubeData.vnz1, nz1);
-					bufferVertex(x110, y110, z110, cubeData.unz1, cubeData.vnz1, nz1);
+					bufferQuad(x101, y101, z101, x100, y100, z100, x110, y110, z110, x111, y111, z111, cubeData.upx1, cubeData.vpx0, cubeData.upx0, cubeData.vpx1,  normalMatrix.m00,  normalMatrix.m10,  normalMatrix.m20);
+					bufferQuad(x000, y000, z000, x001, y001, z001, x011, y011, z011, x010, y010, z010, cubeData.unx1, cubeData.vnx0, cubeData.unx0, cubeData.vnx1, -normalMatrix.m00, -normalMatrix.m10, -normalMatrix.m20);
+					bufferQuad(x011, y011, z011, x111, y111, z111, x110, y110, z110, x010, y010, z010, cubeData.upy0, cubeData.vpy1, cubeData.upy1, cubeData.vpy0,  normalMatrix.m01,  normalMatrix.m11,  normalMatrix.m21);
+					bufferQuad(x000, y000, z000, x100, y100, z100, x101, y101, z101, x001, y001, z001, cubeData.uny0, cubeData.vny1, cubeData.uny1, cubeData.vny0, -normalMatrix.m01, -normalMatrix.m11, -normalMatrix.m21);
+					bufferQuad(x001, y001, z001, x101, y101, z101, x111, y111, z111, x011, y011, z011, cubeData.upz1, cubeData.vpz0, cubeData.upz0, cubeData.vpz1,  normalMatrix.m02,  normalMatrix.m12,  normalMatrix.m22);
+					bufferQuad(x100, y100, z100, x000, y000, z000, x010, y010, z010, x110, y110, z110, cubeData.unz1, cubeData.vnz0, cubeData.unz0, cubeData.vnz1, -normalMatrix.m02, -normalMatrix.m12, -normalMatrix.m22);
 				}
 
 				queue.add(null);
@@ -331,8 +165,16 @@ public class FastModelRenderer {
 		return cubes * 6 * 4;
 	}
 
-	private void bufferVertex(float x, float y, float z, float u, float v, int n) {
-		long offset = address + verticesTotal * VERTEX_SIZE;
+	protected void bufferQuad(float x0, float y0, float z0, float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, float u0, float v0, float u1, float v1, float nx, float ny, float nz) {
+		int n = ((int) (nx * 127) & 255) | ((int) (ny * 127) & 255) << 8 | ((int) (nz * 127) & 255) << 16;
+		bufferVertex(x0, y0, z0, u0, v0, n);
+		bufferVertex(x1, y1, z1, u1, v0, n);
+		bufferVertex(x2, y2, z2, u1, v1, n);
+		bufferVertex(x3, y3, z3, u0, v1, n);
+	}
+
+	protected void bufferVertex(float x, float y, float z, float u, float v, int n) {
+		long offset = address + verticesTotal * vertexSize;
 		UNSAFE.putFloat(offset + 0, x);
 		UNSAFE.putFloat(offset + 4, y);
 		UNSAFE.putFloat(offset + 8, z);
@@ -341,6 +183,26 @@ public class FastModelRenderer {
 		UNSAFE.putInt(offset + 20, n);
 		verticesBatch++;
 		verticesTotal++;
+	}
+
+	public void pushMatrix() {
+		matrixStack.push();
+	}
+
+	public void popMatrix() {
+		matrixStack.pop();
+	}
+
+	public void translate(float x, float y, float z) {
+		matrixStack.translate(x, y, z);
+	}
+
+	public void scale(float x, float y, float z) {
+		matrixStack.scale(x, y, z);
+	}
+
+	public void rotate(float radian, float x, float y, float z) {
+		matrixStack.rotate(radian, x, y, z);
 	}
 
 }

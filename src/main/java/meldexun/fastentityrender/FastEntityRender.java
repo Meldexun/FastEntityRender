@@ -3,10 +3,11 @@ package meldexun.fastentityrender;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import meldexun.fastentityrender.renderer.FastModelRenderer;
+import meldexun.betterconfig.api.BetterConfigManager;
 import meldexun.matrixutil.MathUtil;
 import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.client.event.ConfigChangedEvent.OnConfigChangedEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
 import net.minecraftforge.fml.common.event.FMLConstructionEvent;
@@ -29,11 +30,18 @@ public class FastEntityRender {
 	}
 
 	@SubscribeEvent
+	public void onConfigChangedEvent(OnConfigChangedEvent event) {
+		if (event.getModID().equals(MODID)) {
+			BetterConfigManager.sync(MODID);
+		}
+	}
+
+	@SubscribeEvent
 	public void onRenderTickEvent(TickEvent.RenderTickEvent event) {
 		if (event.phase == Phase.START) {
-			FastModelRenderer.getInstance().startFrame();
+			EntityRenderer.startFrame();
 		} else {
-			FastModelRenderer.getInstance().endFrame();
+			EntityRenderer.endFrame();
 		}
 	}
 
