@@ -16,6 +16,7 @@ public class FastEntityRenderTweaker implements ITweaker {
 	@Override
 	public void injectIntoClassLoader(LaunchClassLoader classLoader) {
 		classLoader.registerTransformer(FastEntityRenderClassTransformer.class.getName());
+		classLoader.registerTransformer(ModelClassTransformer.class.getName());
 	}
 
 	@Override

@@ -2,8 +2,6 @@ package meldexun.fastentityrender.renderer;
 
 import static meldexun.memoryutil.UnsafeUtil.UNSAFE;
 
-import java.util.function.Supplier;
-
 import meldexun.fastentityrender.util.ArrayStack;
 import meldexun.fastentityrender.util.CubeData;
 import meldexun.matrixutil.Matrix3f;
@@ -100,8 +98,7 @@ public abstract class FastModelRenderer {
 					matrixStack.rotateX(bone1.rotateAngleX);
 
 				for (int i = 0; i < bone1.cubeList.size(); i++) {
-					@SuppressWarnings("unchecked")
-					CubeData cubeData = ((Supplier<CubeData>) bone1.cubeList.get(i)).get();
+					CubeData cubeData = ((CubeDataProvider) bone1.cubeList.get(i)).getCubeData();
 
 					Matrix4f modelMatrix = matrixStack.modelMatrix();
 					float x000 = modelMatrix.m00 * (cubeData.x0 * scale) + modelMatrix.m01 * (cubeData.y0 * scale) + modelMatrix.m02 * (cubeData.z0 * scale) + modelMatrix.m03;
