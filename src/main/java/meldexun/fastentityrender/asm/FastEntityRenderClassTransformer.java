@@ -25,7 +25,7 @@ import net.minecraft.launchwrapper.Launch;
 
 public class FastEntityRenderClassTransformer extends HashMapClassNodeClassTransformer implements IClassTransformer {
 
-	private static final ClassUtil REMAPPING_CLASS_UTIL;
+	static final ClassUtil REMAPPING_CLASS_UTIL;
 	static {
 		try {
 			Class<?> FMLDeobfuscatingRemapper = Class.forName("net.minecraftforge.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper", true, Launch.classLoader);
