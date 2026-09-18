@@ -1,8 +1,10 @@
-package meldexun.fastentityrender.asm;
+package meldexun.fastentityrender.asm.tweaker;
 
 import java.io.File;
 import java.util.List;
 
+import meldexun.fastentityrender.asm.FastEntityRenderClassTransformer;
+import meldexun.fastentityrender.asm.ModelClassTransformer;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 

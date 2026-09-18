@@ -29,6 +29,7 @@ import meldexun.asmutil2.AbstractClassTransformer;
 import meldexun.asmutil2.NonLoadingClassWriter;
 
 import meldexun.fastentityrender.FastEntityRenderConfig;
+import meldexun.fastentityrender.asm.util.DeobfuscationUtil;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraftforge.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper;
 

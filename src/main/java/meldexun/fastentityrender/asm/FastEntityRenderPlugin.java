@@ -4,6 +4,7 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 
+import meldexun.fastentityrender.asm.tweaker.FastEntityRenderTweaker;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.Launch;
 import net.minecraftforge.fml.common.launcher.FMLInjectionAndSortingTweaker;

@@ -1,4 +1,4 @@
-package meldexun.fastentityrender.asm;
+package meldexun.fastentityrender.asm.util;
 
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
