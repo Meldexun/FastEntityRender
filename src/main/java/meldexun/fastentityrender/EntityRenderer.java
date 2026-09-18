@@ -1,12 +1,12 @@
 package meldexun.fastentityrender;
 
+import meldexun.fastentityrender.api.IModelRenderer;
 import meldexun.fastentityrender.integration.Optifine;
 import meldexun.fastentityrender.integration.OptifineLegacyModelRenderer;
 import meldexun.fastentityrender.integration.OptifinePersistentModelRenderer;
 import meldexun.fastentityrender.renderer.FastModelRenderer;
 import meldexun.fastentityrender.renderer.LegacyModelRenderer;
 import meldexun.fastentityrender.renderer.PersistentModelRenderer;
-import net.minecraft.client.model.ModelRenderer;
 
 public class EntityRenderer {
 
@@ -52,7 +52,7 @@ public class EntityRenderer {
 		renderer.endBatch();
 	}
 
-	public static void render(ModelRenderer modelRenderer, float scale) {
+	public static void render(IModelRenderer modelRenderer, float scale) {
 		renderer.render(modelRenderer, scale);
 	}
 

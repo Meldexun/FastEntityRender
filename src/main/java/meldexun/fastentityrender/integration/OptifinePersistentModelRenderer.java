@@ -33,7 +33,7 @@ public class OptifinePersistentModelRenderer extends PersistentModelRenderer {
 	}
 
 	@Override
-	protected void bufferQuad(float x0, float y0, float z0, float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, float u0, float v0, float u1, float v1, float nx, float ny, float nz) {
+	public void bufferQuad(float x0, float y0, float z0, float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, float u0, float v0, float u1, float v1, float nx, float ny, float nz) {
 		if (!isShaders) {
 			super.bufferQuad(x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3, u0, v0, u1, v1, nx, ny, nz);
 		} else {
