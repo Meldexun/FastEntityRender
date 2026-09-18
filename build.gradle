@@ -19,13 +19,13 @@ minecraft {
         client {
             taskName "runClient ${mod_name} ${mc_version}"
             environment 'MC_VERSION', "${mc_version}"
-            property 'fml.coreMods.load', "${mod_plugin_class}"
+            property 'fml.coreMods.load', "${dependency_plugin_classes},${mod_plugin_class}"
         }
 
         server {
             taskName "runServer ${mod_name} ${mc_version}"
             environment 'MC_VERSION', "${mc_version}"
-            property 'fml.coreMods.load', "${mod_plugin_class}"
+            property 'fml.coreMods.load', "${dependency_plugin_classes},${mod_plugin_class}"
         }
     }
 }
