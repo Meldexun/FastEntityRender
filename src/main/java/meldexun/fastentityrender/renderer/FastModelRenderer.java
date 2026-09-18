@@ -2,6 +2,8 @@ package meldexun.fastentityrender.renderer;
 
 import static meldexun.memoryutil.UnsafeUtil.UNSAFE;
 
+import javax.annotation.Nullable;
+
 import it.unimi.dsi.fastutil.Stack;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import meldexun.fastentityrender.api.IModelRenderer;
@@ -84,6 +86,7 @@ public abstract class FastModelRenderer implements IVertexConsumer {
 		bone.render(matrixStack, scale, this);
 		bone.pushChildren(stack);
 		while (!stack.isEmpty()) {
+			@Nullable
 			IModelRenderer bone1 = stack.pop();
 			if (bone1 != null) {
 				if (bone1.shouldRender()) {
