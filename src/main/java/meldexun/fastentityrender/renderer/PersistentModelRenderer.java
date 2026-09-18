@@ -7,11 +7,12 @@ import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.opengl.GL44;
 
+import it.unimi.dsi.fastutil.Stack;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import meldexun.fastentityrender.FastEntityRenderConfig;
 import meldexun.fastentityrender.opengl.BufferStorage;
 import meldexun.fastentityrender.opengl.Sync;
 import meldexun.fastentityrender.opengl.VertexArray;
-import meldexun.fastentityrender.util.ArrayStack;
 import meldexun.memoryutil.MemoryUtil;
 import meldexun.memoryutil.NIOBufferUtil;
 
@@ -27,7 +28,7 @@ public class PersistentModelRenderer extends FastModelRenderer {
 	protected long[] addresses;
 	protected final Object[] syncs = new Object[BUFFERS];
 	@SuppressWarnings("unchecked")
-	protected final ArrayStack<Runnable>[] tasks = IntStream.range(0, BUFFERS).mapToObj(i -> new ArrayStack<>()).toArray(ArrayStack[]::new);
+	protected final Stack<Runnable>[] tasks = IntStream.range(0, BUFFERS).mapToObj(i -> new ObjectArrayList<>()).toArray(Stack[]::new);
 
 	protected int index;
 	protected int vbo;
@@ -47,7 +48,7 @@ public class PersistentModelRenderer extends FastModelRenderer {
 		deleteVAOs();
 		for (int i = 0; i < BUFFERS; i++) {
 			while (!tasks[i].isEmpty()) {
-				tasks[i].remove().run();
+				tasks[i].pop().run();
 			}
 		}
 	}
@@ -122,7 +123,7 @@ public class PersistentModelRenderer extends FastModelRenderer {
 		}
 		for (int i = 0; i < BUFFERS; i++) {
 			int vbo = vbos[i];
-			tasks[i].add(() -> {
+			tasks[i].push(() -> {
 				BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, vbo, false);
 				BufferStorage.unmapBuffer(GL15.GL_ARRAY_BUFFER, vbo);
 				BufferStorage.bindBuffer(GL15.GL_ARRAY_BUFFER, 0, false);
@@ -139,7 +140,7 @@ public class PersistentModelRenderer extends FastModelRenderer {
 		}
 		for (int i = 0; i < BUFFERS; i++) {
 			int vao = vaos[i];
-			tasks[i].add(() -> {
+			tasks[i].push(() -> {
 				VertexArray.deleteVertexArray(vao);
 			});
 		}
@@ -161,7 +162,7 @@ public class PersistentModelRenderer extends FastModelRenderer {
 			syncs[index] = null;
 		}
 		while (!tasks[index].isEmpty()) {
-			tasks[index].remove().run();
+			tasks[index].pop().run();
 		}
 
 		if (FastEntityRenderConfig.useExplicitFlush != useFlushExplicit) {

@@ -2,7 +2,8 @@ package meldexun.fastentityrender.renderer;
 
 import static meldexun.memoryutil.UnsafeUtil.UNSAFE;
 
-import meldexun.fastentityrender.util.ArrayStack;
+import it.unimi.dsi.fastutil.Stack;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import meldexun.fastentityrender.util.CubeData;
 import meldexun.matrixutil.Matrix3f;
 import meldexun.matrixutil.Matrix4f;
@@ -13,7 +14,7 @@ public abstract class FastModelRenderer {
 
 	public static final int VERTEX_SIZE = 24;
 
-	private final ArrayStack<ModelRenderer> queue = new ArrayStack<>();
+	private final Stack<ModelRenderer> stack = new ObjectArrayList<>();
 	private final MatrixStack matrixStack = new MatrixStack();
 
 	protected long capacity;
@@ -80,9 +81,9 @@ public abstract class FastModelRenderer {
 
 		this.ensureCapacity((verticesTotal + vertices) * vertexSize);
 
-		queue.add(bone);
-		while (!queue.isEmpty()) {
-			ModelRenderer bone1 = queue.remove();
+		stack.push(bone);
+		while (!stack.isEmpty()) {
+			ModelRenderer bone1 = stack.pop();
 			if (bone1 != null) {
 				if (bone1.isHidden || !bone1.showModel) {
 					continue;
@@ -137,8 +138,8 @@ public abstract class FastModelRenderer {
 					bufferQuad(x100, y100, z100, x000, y000, z000, x010, y010, z010, x110, y110, z110, cubeData.unz1, cubeData.vnz0, cubeData.unz0, cubeData.vnz1, -normalMatrix.m02, -normalMatrix.m12, -normalMatrix.m22);
 				}
 
-				queue.add(null);
-				queue.addAll(bone1.childModels);
+				stack.push(null);
+				bone1.childModels.forEach(stack::push);
 			} else {
 				matrixStack.pop();
 			}
@@ -151,12 +152,12 @@ public abstract class FastModelRenderer {
 
 	private int vertices(ModelRenderer bone) {
 		int cubes = 0;
-		queue.add(bone);
-		while (!queue.isEmpty()) {
-			ModelRenderer bone1 = queue.remove();
+		stack.push(bone);
+		while (!stack.isEmpty()) {
+			ModelRenderer bone1 = stack.pop();
 			if (!bone1.isHidden && bone1.showModel) {
 				cubes += bone1.cubeList.size();
-				queue.addAll(bone1.childModels);
+				bone1.childModels.forEach(stack::push);
 			}
 		}
 		return cubes * 6 * 4;
