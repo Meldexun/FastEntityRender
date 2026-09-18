@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "meldexun.fastentityrender.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "mixins.fastentityrender.refmap.json",
+  "mixins": [],
+  "client": [
+    "minecraft.ModelBoxMixin",
+    "minecraft.ModelRendererMixin",
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

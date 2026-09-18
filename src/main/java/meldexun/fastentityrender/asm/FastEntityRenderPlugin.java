@@ -4,6 +4,9 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 
+import org.spongepowered.asm.launch.MixinBootstrap;
+import org.spongepowered.asm.mixin.MixinEnvironment;
+
 import meldexun.fastentityrender.asm.tweaker.FastEntityRenderTweaker;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.Launch;
@@ -48,7 +51,9 @@ public class FastEntityRenderPlugin implements IFMLLoadingPlugin {
 
 	@Override
 	public void injectData(Map<String, Object> data) {
+		MixinBootstrap.init();
 		if (Boolean.FALSE.equals(data.get("runtimeDeobfuscationEnabled"))) {
+			MixinEnvironment.getDefaultEnvironment().setObfuscationContext("searge");
 			CoreModManager.getIgnoredMods().add("mixin-0.8.7.jar");
 			CoreModManager.getIgnoredMods().add("asm-util-6.2.jar");
 			CoreModManager.getIgnoredMods().add("asm-analysis-6.2.jar");

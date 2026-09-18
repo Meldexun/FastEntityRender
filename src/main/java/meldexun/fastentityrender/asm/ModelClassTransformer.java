@@ -1,7 +1,6 @@
 package meldexun.fastentityrender.asm;
 
-import static meldexun.fastentityrender.asm.FastEntityRenderClassTransformer.REMAPPING_CLASS_UTIL;
-
+import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
@@ -24,16 +23,34 @@ import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
+import com.google.common.collect.BiMap;
+
 import meldexun.asmutil2.ASMUtil;
 import meldexun.asmutil2.AbstractClassTransformer;
 import meldexun.asmutil2.NonLoadingClassWriter;
-
+import meldexun.asmutil2.reader.ClassUtil;
 import meldexun.fastentityrender.FastEntityRenderConfig;
 import meldexun.fastentityrender.asm.util.DeobfuscationUtil;
 import net.minecraft.launchwrapper.IClassTransformer;
+import net.minecraft.launchwrapper.Launch;
 import net.minecraftforge.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper;
 
 public class ModelClassTransformer extends AbstractClassTransformer implements IClassTransformer {
+
+	static final ClassUtil REMAPPING_CLASS_UTIL;
+	static {
+		try {
+			Class<?> FMLDeobfuscatingRemapper = Class.forName("net.minecraftforge.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper", true, Launch.classLoader);
+			Field _INSTANCE = FMLDeobfuscatingRemapper.getField("INSTANCE");
+			Field _classNameBiMap = FMLDeobfuscatingRemapper.getDeclaredField("classNameBiMap");
+			_classNameBiMap.setAccessible(true);
+			@SuppressWarnings("unchecked")
+			BiMap<String, String> deobfuscationMap = (BiMap<String, String>) _classNameBiMap.get(_INSTANCE.get(null));
+			REMAPPING_CLASS_UTIL = ClassUtil.getInstance(new ClassUtil.Configuration(Launch.classLoader, deobfuscationMap.inverse(), deobfuscationMap));
+		} catch (ReflectiveOperationException e) {
+			throw new UnsupportedOperationException(e);
+		}
+	}
 
 	private static boolean isRenderCall(AbstractInsnNode insn) {
 		if (!(insn instanceof MethodInsnNode)) return false;

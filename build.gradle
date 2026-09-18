@@ -38,12 +38,18 @@ configurations {
 dependencies {
     minecraft "net.minecraftforge:forge:${mc_version}-${forge_version}"
     shadow "org.spongepowered:mixin:${mixin_version}"
+    annotationProcessor "org.spongepowered:mixin:${mixin_version}:processor"
 
     bundled 'io.github.meldexun:asmutil:2.8.1'
     bundled 'io.github.meldexun:memoryutil:1.1.0'
     bundled 'io.github.meldexun:matrixutil:1.5.0'
 
     shadow fg.deobf('io.github.meldexun:betterconfig:1.12.2-1.2.0:thin')
+}
+
+mixin {
+    add sourceSets.main, "mixins.${mod_id}.refmap.json"
+    config "mixins.${mod_id}.json"
 }
 
 processResources {
@@ -67,6 +73,12 @@ jar {
     manifest {
         attributes 'ModSide': 'CLIENT'
         attributes 'FMLCorePlugin': "${mod_plugin_class}"
+        attributes 'FMLCorePluginContainsFMLMod': 'true'
+        attributes 'FMLCorePluginContainsFMLMod': 'true'
+        attributes 'ForceLoadAsMod': 'true'
+        attributes 'TweakClass': 'org.spongepowered.asm.launch.MixinTweaker'
+        attributes 'TweakOrder': '0'
+        attributes 'MixinConfigs': "mixins.${mod_id}.json"
     }
 }
 
