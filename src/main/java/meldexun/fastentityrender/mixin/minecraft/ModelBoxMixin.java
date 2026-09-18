@@ -15,7 +15,7 @@ import net.minecraft.client.model.ModelRenderer;
 public class ModelBoxMixin implements IModelBox {
 
 	@Unique
-	private CubeData cubeData;
+	protected CubeData cubeData;
 
 	@Inject(method = "<init>(Lnet/minecraft/client/model/ModelRenderer;IIFFFIIIFZ)V", at = @At("RETURN"))
 	public void init(ModelRenderer renderer, int texU, int texV, float x, float y, float z, int dx, int dy, int dz, float delta, boolean mirror, CallbackInfo info) {

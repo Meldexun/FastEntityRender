@@ -33,6 +33,12 @@ minecraft {
 configurations {
     bundled
     implementation.extendsFrom(bundled)
+
+    buildOnly
+}
+
+repositories {
+    flatDir { dirs 'libs' }
 }
 
 dependencies {
@@ -45,6 +51,8 @@ dependencies {
     bundled 'io.github.meldexun:matrixutil:1.5.0'
 
     shadow fg.deobf('io.github.meldexun:betterconfig:1.12.2-1.2.0:thin')
+
+    buildOnly fg.deobf("libs:MoBends_1.12.2:1.2.2-29.09.25-all")
 }
 
 mixin {
@@ -95,3 +103,7 @@ reobf {
 }
 
 shadowJar.finalizedBy('reobfShadowJar')
+
+compileJava {
+    classpath = sourceSets.main.compileClasspath + configurations.buildOnly
+}

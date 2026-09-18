@@ -53,7 +53,11 @@ public class EntityRenderer {
 	}
 
 	public static void render(IModelRenderer modelRenderer, float scale) {
-		renderer.render(modelRenderer, scale);
+		render(modelRenderer, scale, true);
+	}
+
+	public static void render(IModelRenderer modelRenderer, float scale, boolean isRoot) {
+		renderer.render(modelRenderer, scale, isRoot);
 	}
 
 	public static void pushMatrix() {

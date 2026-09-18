@@ -66,7 +66,7 @@ public abstract class FastModelRenderer implements IVertexConsumer {
 
 	protected abstract void renderBatch();
 
-	public void render(IModelRenderer bone, float scale) {
+	public void render(IModelRenderer bone, float scale, boolean isRoot) {
 		int vertices = vertices(bone);
 		if (vertices <= 0) {
 			return;
@@ -79,7 +79,10 @@ public abstract class FastModelRenderer implements IVertexConsumer {
 
 		this.ensureCapacity((verticesTotal + vertices) * vertexSize);
 
-		stack.push(bone);
+		matrixStack.push();
+		bone.applyTransformation(matrixStack, scale, isRoot);
+		bone.render(matrixStack, scale, this);
+		bone.pushChildren(stack);
 		while (!stack.isEmpty()) {
 			IModelRenderer bone1 = stack.pop();
 			if (bone1 != null) {
@@ -94,6 +97,7 @@ public abstract class FastModelRenderer implements IVertexConsumer {
 				matrixStack.pop();
 			}
 		}
+		matrixStack.pop();
 
 		if (!batched) {
 			endBatch();

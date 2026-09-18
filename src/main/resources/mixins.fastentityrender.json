@@ -8,6 +8,11 @@
   "client": [
     "minecraft.ModelBoxMixin",
     "minecraft.ModelRendererMixin",
+    "mobends.ModelPartExtendedMixin",
+    "mobends.ModelPartMixin",
+    "mobends.ModelPartTransformMixin",
+    "mobends.MutatedBoxMixin",
+    "mobends.PartContainerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
