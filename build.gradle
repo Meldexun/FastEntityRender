@@ -82,7 +82,6 @@ jar {
         attributes 'ModSide': 'CLIENT'
         attributes 'FMLCorePlugin': "${mod_plugin_class}"
         attributes 'FMLCorePluginContainsFMLMod': 'true'
-        attributes 'FMLCorePluginContainsFMLMod': 'true'
         attributes 'ForceLoadAsMod': 'true'
         attributes 'TweakClass': 'org.spongepowered.asm.launch.MixinTweaker'
         attributes 'TweakOrder': '0'
