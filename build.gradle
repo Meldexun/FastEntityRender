@@ -56,8 +56,8 @@ dependencies {
 }
 
 mixin {
-    add sourceSets.main, "mixins.${mod_id}.refmap.json"
-    config "mixins.${mod_id}.json"
+    add sourceSets.main, mod_mixin_refmap
+    mod_mixin_configs.split(',').collect { it.trim() }.each { config it }
 }
 
 processResources {
@@ -85,7 +85,6 @@ jar {
         attributes 'ForceLoadAsMod': 'true'
         attributes 'TweakClass': 'org.spongepowered.asm.launch.MixinTweaker'
         attributes 'TweakOrder': '0'
-        attributes 'MixinConfigs': "mixins.${mod_id}.json"
     }
 }
 

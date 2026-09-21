@@ -1,13 +1,16 @@
 {
-  "required": true,
+  "required": false,
   "minVersion": "0.8",
   "package": "meldexun.fastentityrender.mixin",
   "compatibilityLevel": "JAVA_8",
   "refmap": "mixins.fastentityrender.refmap.json",
   "mixins": [],
   "client": [
-    "minecraft.ModelBoxMixin",
-    "minecraft.ModelRendererMixin"
+    "mobends.ModelPartExtendedMixin",
+    "mobends.ModelPartMixin",
+    "mobends.ModelPartTransformMixin",
+    "mobends.MutatedBoxMixin",
+    "mobends.PartContainerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
