@@ -1,9 +1,26 @@
 package meldexun.fastentityrender.asm;
 
+import java.io.File;
+import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+import org.apache.commons.io.IOUtils;
 import org.spongepowered.asm.launch.MixinBootstrap;
 import org.spongepowered.asm.mixin.MixinEnvironment;
 
@@ -30,6 +47,39 @@ public class FastEntityRenderPlugin implements IFMLLoadingPlugin {
 			_tweakSorting.setAccessible(true);
 			((Map<String, Integer>) _tweakSorting.get(null)).put(FastEntityRenderTweaker.class.getName(), 1001);
 		} catch (ReflectiveOperationException e) {
+			throw new UnsupportedOperationException(e);
+		}
+
+		addModsToClasspath("mobends");
+	}
+
+	private static void addModsToClasspath(String... modids) {
+		try {
+			Predicate<String> isTarget = Pattern.compile("^.*\"modid\"\\s*:\\s*\"" + Arrays.stream(modids).collect(Collectors.joining("|", "(?:", ")")) + "\".*$", Pattern.DOTALL).asPredicate();
+
+			Path modsDir = Optional.ofNullable(Launch.minecraftHome).map(File::toPath).orElse(Paths.get(".")).resolve("mods");
+			if (!Files.exists(modsDir)) return;
+			if (!Files.isDirectory(modsDir)) return;
+
+			Method addURL = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+			addURL.setAccessible(true);
+
+			for (Path file : Files.find(modsDir, 1, (p, a) -> a.isRegularFile() && p.getFileName().toString().endsWith(".jar")).collect(Collectors.toList())) {
+				try (JarFile jar = new JarFile(file.toFile())) {
+					JarEntry entry = jar.getJarEntry("mcmod.info");
+					if (entry == null) continue;
+					try (InputStream in = jar.getInputStream(entry)) {
+						if (!isTarget.test(IOUtils.toString(in, StandardCharsets.UTF_8))) {
+							continue;
+						}
+					}
+				}
+
+				URL url = file.toUri().toURL();
+				addURL.invoke(Launch.classLoader.getClass().getClassLoader(), url);
+				addURL.invoke(Launch.classLoader, url);
+			}
+		} catch (Exception e) {
 			throw new UnsupportedOperationException(e);
 		}
 	}
